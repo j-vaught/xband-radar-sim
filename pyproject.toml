@@ -1,0 +1,62 @@
+[project]
+name = "radar-sim"
+version = "0.1.0"
+description = "X-band pulse compression radar EM simulation framework"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1",
+]
+antenna = [
+    "h5py>=3.8",
+    "vtk>=9.2",
+]
+propagation = [
+    "tensorflow>=2.10",
+    "sionna>=0.14",
+    "trimesh>=3.21",
+    "numba>=0.57",
+]
+scattering = [
+    "trimesh>=3.21",
+]
+all = [
+    "radar-sim[dev,antenna,propagation,scattering]",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "tier1: Analytical validation tests (must pass)",
+    "tier2: Regression tests (must pass)",
+    "tier3: Integration tests (must pass for release)",
+    "slow: Tests taking > 60 seconds",
+    "gpu: Tests requiring NVIDIA GPU",
+]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W"]

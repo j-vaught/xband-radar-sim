@@ -1,0 +1,30 @@
+# Furuno DRS4D-NXT Default Configuration
+name: "Furuno DRS4D-NXT"
+
+# Frequency parameters
+center_frequency_hz: 9.41e9
+bandwidth_hz: 50.0e6
+
+# Antenna parameters
+antenna_type: "slotted_waveguide"
+horizontal_beamwidth_deg: 3.9
+vertical_beamwidth_deg: 25.0
+antenna_gain_dbi: 22.0
+polarization: "H"
+radome_diameter_m: 0.61
+
+# Transmitter
+tx_power_w: 25.0
+pulse_compression: true
+
+# Operational
+max_range_m: 3000.0
+range_resolution_m: 1.5
+
+# Target
+min_target_rcs_m2: 0.082  # 3-inch corner reflector
+
+# Simulation
+n_rays: 100000
+mesh_resolution_lambda: 0.1
+enable_gpu: true
