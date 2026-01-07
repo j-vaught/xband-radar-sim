@@ -204,6 +204,66 @@ def create_sphere(
     return np.array(vertices, dtype=np.float64), np.array(faces, dtype=np.int32)
 
 
+def create_cylinder(
+    radius_m: float = 0.127,  # 5 inches = 0.127m
+    height_m: float = 0.76,   # 2.5 ft = 0.76m
+    n_segments: int = 16
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Create cylinder geometry for buoy or similar object.
+    
+    Cylinder is vertical (Z-axis), centered at origin, extending from 0 to height.
+    
+    Args:
+        radius_m: Cylinder radius
+        height_m: Cylinder height
+        n_segments: Number of segments around circumference
+    """
+    vertices = []
+    faces = []
+    
+    # Bottom center (index 0)
+    vertices.append([0, 0, 0])
+    
+    # Bottom ring (indices 1 to n_segments)
+    for i in range(n_segments):
+        angle = 2 * np.pi * i / n_segments
+        vertices.append([radius_m * np.cos(angle), radius_m * np.sin(angle), 0])
+    
+    # Top center (index n_segments + 1)
+    vertices.append([0, 0, height_m])
+    
+    # Top ring (indices n_segments + 2 to 2*n_segments + 1)
+    for i in range(n_segments):
+        angle = 2 * np.pi * i / n_segments
+        vertices.append([radius_m * np.cos(angle), radius_m * np.sin(angle), height_m])
+    
+    # Bottom cap faces
+    for i in range(n_segments):
+        next_i = (i + 1) % n_segments
+        faces.append([0, next_i + 1, i + 1])  # CCW for outward normal
+    
+    # Top cap faces
+    top_center = n_segments + 1
+    top_ring_start = n_segments + 2
+    for i in range(n_segments):
+        next_i = (i + 1) % n_segments
+        faces.append([top_center, top_ring_start + i, top_ring_start + next_i])
+    
+    # Side faces (quads as two triangles)
+    for i in range(n_segments):
+        next_i = (i + 1) % n_segments
+        bottom_curr = i + 1
+        bottom_next = next_i + 1
+        top_curr = top_ring_start + i
+        top_next = top_ring_start + next_i
+        
+        faces.append([bottom_curr, bottom_next, top_next])
+        faces.append([bottom_curr, top_next, top_curr])
+    
+    return np.array(vertices, dtype=np.float64), np.array(faces, dtype=np.int32)
+
+
 def create_test_scene(
     target_range_m: float = 2000.0,
     target_type: str = "corner"
