@@ -1,0 +1,24 @@
+======================================================================
+  BANDWIDTH + PULSE WIDTH COMPARISON
+  Shows how BANDWIDTH determines range resolution
+======================================================================
+
+Numba: ENABLED
+
+Running: 1μs, 50MHz → 3m resolution
+  Done in 10.4s
+
+Running: 10μs, 50MHz → 3m resolution
+  Done in 6.3s
+
+Running: 10μs, 10MHz → 15m resolution
+  Done in 6.0s
+
+Running: 50μs, 5MHz → 30m resolution
+  Done in 6.7s
+
+Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_bandwidth_comparison.png
+
+======================================================================
+  COMPLETE!
+======================================================================

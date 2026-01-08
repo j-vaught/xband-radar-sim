@@ -1,0 +1,48 @@
+======================================================================
+  FULL WAVEFORM RAY TRACING - Multiple Pulse Lengths
+======================================================================
+
+Numba: ENABLED
+Scene: 184 triangles, 5 targets
+Antenna: 3.9° × 25.0°
+
+Running: 1μs pulse
+    72/360, 16291 echoes, 8.1s
+    144/360, 16796 echoes, 12.7s
+    216/360, 20736 echoes, 17.4s
+    288/360, 73623 echoes, 23.4s
+    360/360, 73716 echoes, 29.2s
+
+Running: 10μs pulse
+    72/360, 16294 echoes, 6.0s
+    144/360, 16798 echoes, 11.9s
+    216/360, 20677 echoes, 17.3s
+    288/360, 73466 echoes, 23.2s
+    360/360, 73544 echoes, 28.7s
+
+Running: 50μs pulse
+    72/360, 16028 echoes, 5.5s
+    144/360, 16546 echoes, 11.4s
+    216/360, 20406 echoes, 17.6s
+    288/360, 73284 echoes, 24.0s
+    360/360, 73359 echoes, 29.8s
+
+Running: 100μs pulse
+    72/360, 16189 echoes, 5.3s
+    144/360, 16742 echoes, 10.6s
+    216/360, 20712 echoes, 15.8s
+    288/360, 73355 echoes, 22.0s
+    360/360, 73439 echoes, 27.5s
+
+Running: 200μs pulse
+    72/360, 16105 echoes, 5.9s
+    144/360, 16606 echoes, 11.4s
+    216/360, 20555 echoes, 16.7s
+    288/360, 72962 echoes, 23.5s
+    360/360, 73054 echoes, 28.9s
+
+Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_fullwave_comparison.png
+
+======================================================================
+  COMPLETE!
+======================================================================

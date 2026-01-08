@@ -52,6 +52,63 @@ def matched_filter_fft(
     return compressed[:n]
 
 
+def matched_filter_fft_windowed(
+    rx_signal: np.ndarray,
+    tx_waveform: np.ndarray,
+    window_type: str = "taylor"
+) -> np.ndarray:
+    """
+    FFT-based matched filter with windowing for sidelobe reduction.
+    
+    Windowing reduces range sidelobes from ~-13dB (sinc) to:
+    - Taylor: ~-35dB to -40dB
+    - Hamming: ~-42dB
+    - Blackman: ~-58dB
+    
+    Args:
+        rx_signal: Received signal
+        tx_waveform: Transmitted waveform
+        window_type: 'taylor', 'hamming', 'blackman', or 'none'
+        
+    Returns:
+        Compressed signal with reduced sidelobes
+    """
+    n = len(rx_signal)
+    n_tx = len(tx_waveform)
+    n_fft = 2 ** int(np.ceil(np.log2(n + n_tx - 1)))
+    
+    # Apply window to transmit waveform for matched filter
+    if window_type == "taylor":
+        # Taylor window with -35dB sidelobes
+        nbar = 4
+        sll = 35  # sidelobe level in dB
+        # Approximate Taylor with cosine-sum
+        a = np.zeros(nbar)
+        a[0] = 1.0
+        for m in range(1, nbar):
+            a[m] = (-1)**(m+1) * np.prod([(1 - (m/sll)**2) / (1 - (m/k)**2) 
+                                          for k in range(1, nbar) if k != m])
+        t = np.linspace(-0.5, 0.5, n_tx)
+        window = sum(a[m] * np.cos(2*np.pi*m*t) for m in range(nbar))
+        window = window / np.max(window)
+    elif window_type == "hamming":
+        window = np.hamming(n_tx)
+    elif window_type == "blackman":
+        window = np.blackman(n_tx)
+    else:
+        window = np.ones(n_tx)
+    
+    # Windowed reference for matched filter
+    tx_windowed = tx_waveform * window
+    
+    RX = np.fft.fft(rx_signal, n_fft)
+    TX = np.fft.fft(tx_windowed, n_fft)
+    
+    compressed = np.fft.ifft(RX * np.conj(TX))
+    
+    return compressed[:n]
+
+
 def compute_compression_gain(
     input_signal: np.ndarray,
     compressed: np.ndarray
