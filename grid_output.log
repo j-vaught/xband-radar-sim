@@ -1,0 +1,81 @@
+======================================================================
+  16-RUN GRID: Bandwidth × Pulse Width
+======================================================================
+
+Numba: ENABLED
+
+[1/16] 100MHz_1μs → 1.5m resolution
+    Done in 10.8s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_100MHz_1μs.png
+
+[2/16] 100MHz_10μs → 1.5m resolution
+    Done in 7.5s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_100MHz_10μs.png
+
+[3/16] 100MHz_100μs → 1.5m resolution
+    Done in 9.0s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_100MHz_100μs.png
+
+[4/16] 100MHz_1000μs → 1.5m resolution
+    Done in 32.7s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_100MHz_1000μs.png
+
+[5/16] 50MHz_1μs → 3.0m resolution
+    Done in 7.7s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_50MHz_1μs.png
+
+[6/16] 50MHz_10μs → 3.0m resolution
+    Done in 6.3s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_50MHz_10μs.png
+
+[7/16] 50MHz_100μs → 3.0m resolution
+    Done in 8.1s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_50MHz_100μs.png
+
+[8/16] 50MHz_1000μs → 3.0m resolution
+    Done in 32.8s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_50MHz_1000μs.png
+
+[9/16] 10MHz_1μs → 15.0m resolution
+    Done in 6.6s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_10MHz_1μs.png
+
+[10/16] 10MHz_10μs → 15.0m resolution
+    Done in 7.2s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_10MHz_10μs.png
+
+[11/16] 10MHz_100μs → 15.0m resolution
+    Done in 7.5s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_10MHz_100μs.png
+
+[12/16] 10MHz_1000μs → 15.0m resolution
+    Done in 32.2s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_10MHz_1000μs.png
+
+[13/16] 5MHz_1μs → 30.0m resolution
+    Done in 5.5s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_5MHz_1μs.png
+
+[14/16] 5MHz_10μs → 30.0m resolution
+    Done in 6.2s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_5MHz_10μs.png
+
+[15/16] 5MHz_100μs → 30.0m resolution
+    Done in 7.1s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_5MHz_100μs.png
+
+[16/16] 5MHz_1000μs → 30.0m resolution
+    Done in 32.4s
+    Saved: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/ppi_5MHz_1000μs.png
+
+======================================================================
+Creating combined 4×4 grid...
+
+Saved combined grid: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_bw_pulse_grid.png
+Individual PPIs: /Users/jvaught/Downloads/temp/temp_simu/implementation/ppi_grid_outputs/
+
+Total time: 226.2s (3.8 min)
+
+======================================================================
+  COMPLETE!
+======================================================================

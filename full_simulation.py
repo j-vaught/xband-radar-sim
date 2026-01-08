@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Bandwidth vs Pulse Width Comparison.
+16-Run Grid: Bandwidth × Pulse Width
 
-Shows how BANDWIDTH (not pulse width) determines range resolution
-after matched filtering.
+4 Bandwidths: 100MHz, 50MHz, 10MHz, 5MHz
+4 Pulse widths: 1μs, 10μs, 100μs, 1000μs
+
+Saves individual PPIs + combined 4x4 grid.
 """
 import sys
 import os
@@ -17,10 +19,7 @@ import time
 
 from config import RadarConfig
 from propagation.cpu_raytrace import trace_rays_cpu, NUMBA_AVAILABLE
-from propagation.scene import (
-    Scene, TargetObject,
-    create_corner_reflector, create_flat_plate, create_sphere, create_cylinder
-)
+from propagation.scene import Scene, TargetObject, create_corner_reflector, create_sphere
 from signal.waveform import WaveformConfig, generate_lfm_chirp
 from signal.matched_filter import matched_filter_fft_windowed
 
@@ -123,89 +122,157 @@ def run_sim(scene, radar_pos, wf_config, radar_config, n_rays_per_az, n_azimuths
     return azimuths, ranges[:max_range_idx], ppi[:, :max_range_idx]
 
 
+def plot_single_ppi(azimuths, ranges, ppi, title, output_path):
+    """Save individual PPI plot."""
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={'projection': 'polar'})
+    
+    az_rad = np.deg2rad(azimuths)
+    R, AZ = np.meshgrid(ranges, az_rad)
+    
+    ppi_db = 10 * np.log10(ppi + 1e-30)
+    vmax = np.max(ppi_db)
+    ppi_norm = np.clip((ppi_db - (vmax - 50)) / 50, 0, 1)
+    
+    ax.pcolormesh(AZ, R, ppi_norm, cmap='gray', shading='auto')
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+    ax.set_facecolor('black')
+    fig.patch.set_facecolor('black')
+    
+    for r in [100, 200, 300, 400]:
+        if r < ranges[-1]:
+            ax.plot(np.linspace(0, 2*np.pi, 100), [r]*100, 'g-', alpha=0.3, lw=0.5)
+    
+    ax.set_title(title, color='green', fontsize=10)
+    ax.tick_params(colors='green')
+    ax.grid(True, color='green', alpha=0.3, lw=0.5)
+    ax.set_xticks(np.deg2rad([0, 90, 180, 270]))
+    ax.set_xticklabels(['N', 'E', 'S', 'W'], color='green')
+    
+    plt.savefig(output_path, dpi=100, facecolor='black', bbox_inches='tight')
+    plt.close()
+
+
 def main():
     print("=" * 70)
-    print("  BANDWIDTH + PULSE WIDTH COMPARISON")
-    print("  Shows how BANDWIDTH determines range resolution")
+    print("  16-RUN GRID: Bandwidth × Pulse Width")
     print("=" * 70)
     print(f"\nNumba: {'ENABLED' if NUMBA_AVAILABLE else 'DISABLED'}")
     
     scene = create_scene()
     radar_pos = np.array([0.0, 0.0, 5.0])
     radar_config = RadarConfig()
-    
     c = 299792458.0
     
-    # Configs: (name, pulse_width, bandwidth)
-    configs = [
-        ("1μs, 50MHz\n3m res", 1e-6, 50e6),
-        ("10μs, 50MHz\n3m res", 10e-6, 50e6),
-        ("10μs, 10MHz\n15m res", 10e-6, 10e6),
-        ("50μs, 5MHz\n30m res", 50e-6, 5e6),
-    ]
+    # Create output folder
+    output_dir = os.path.join(os.path.dirname(__file__), 'ppi_grid_outputs')
+    os.makedirs(output_dir, exist_ok=True)
     
-    results = []
+    # Grid parameters
+    bandwidths = [100e6, 50e6, 10e6, 5e6]  # Hz
+    pulse_widths = [1e-6, 10e-6, 100e-6, 1000e-6]  # seconds
     
-    for name, pulse_width, bandwidth in configs:
+    bw_labels = ['100MHz', '50MHz', '10MHz', '5MHz']
+    pw_labels = ['1μs', '10μs', '100μs', '1000μs']
+    
+    # Store results for combined grid
+    all_results = {}  # (bw_idx, pw_idx) -> (azimuths, ranges, ppi)
+    
+    total_runs = len(bandwidths) * len(pulse_widths)
+    run_num = 0
+    total_start = time.time()
+    
+    for bw_idx, bandwidth in enumerate(bandwidths):
         res_m = c / (2 * bandwidth)
-        print(f"\nRunning: {name.split(chr(10))[0]} → {res_m:.0f}m resolution")
         
-        wf_config = WaveformConfig(
-            pulse_width_s=pulse_width,
-            bandwidth_hz=bandwidth,
-            center_frequency_hz=9.41e9,
-            sample_rate_hz=100e6
-        )
-        
-        start = time.time()
-        azimuths, ranges, ppi = run_sim(
-            scene, radar_pos, wf_config, radar_config,
-            n_rays_per_az=3000,  # Fewer rays for speed
-            n_azimuths=360,
-            max_range=500.0
-        )
-        print(f"  Done in {time.time()-start:.1f}s")
-        results.append((name, azimuths, ranges, ppi))
+        for pw_idx, pulse_width in enumerate(pulse_widths):
+            run_num += 1
+            
+            label = f"{bw_labels[bw_idx]}_{pw_labels[pw_idx]}"
+            print(f"\n[{run_num}/{total_runs}] {label} → {res_m:.1f}m resolution")
+            
+            wf_config = WaveformConfig(
+                pulse_width_s=pulse_width,
+                bandwidth_hz=bandwidth,
+                center_frequency_hz=9.41e9,
+                sample_rate_hz=200e6  # 200MHz sample rate
+            )
+            
+            start = time.time()
+            azimuths, ranges, ppi = run_sim(
+                scene, radar_pos, wf_config, radar_config,
+                n_rays_per_az=2000,  # Fast
+                n_azimuths=360,
+                max_range=500.0
+            )
+            elapsed = time.time() - start
+            print(f"    Done in {elapsed:.1f}s")
+            
+            # Save individual PPI
+            individual_path = os.path.join(output_dir, f'ppi_{label}.png')
+            title = f'{bw_labels[bw_idx]}, {pw_labels[pw_idx]}\n{res_m:.1f}m res'
+            plot_single_ppi(azimuths, ranges, ppi, title, individual_path)
+            print(f"    Saved: {individual_path}")
+            
+            all_results[(bw_idx, pw_idx)] = (azimuths, ranges, ppi)
     
-    # Plot
-    n = len(results)
-    fig, axes = plt.subplots(1, n, figsize=(5*n, 5), subplot_kw={'projection': 'polar'})
+    # Create combined 4x4 grid
+    print("\n" + "=" * 70)
+    print("Creating combined 4×4 grid...")
     
-    for idx, (name, azimuths, ranges, ppi) in enumerate(results):
-        ax = axes[idx]
-        az_rad = np.deg2rad(azimuths)
-        R, AZ = np.meshgrid(ranges, az_rad)
-        
-        ppi_db = 10 * np.log10(ppi + 1e-30)
-        vmax = np.max(ppi_db)
-        ppi_norm = np.clip((ppi_db - (vmax - 50)) / 50, 0, 1)
-        
-        ax.pcolormesh(AZ, R, ppi_norm, cmap='gray', shading='auto')
-        ax.set_theta_zero_location('N')
-        ax.set_theta_direction(-1)
-        ax.set_facecolor('black')
-        
-        for r in [100, 200, 300, 400]:
-            if r < ranges[-1]:
-                ax.plot(np.linspace(0, 2*np.pi, 100), [r]*100, 'g-', alpha=0.3, lw=0.5)
-        
-        ax.set_title(name, color='green', fontsize=11)
-        ax.tick_params(colors='green')
-        ax.grid(True, color='green', alpha=0.3, lw=0.5)
-        ax.set_xticks(np.deg2rad([0, 90, 180, 270]))
-        ax.set_xticklabels(['N', 'E', 'S', 'W'], color='green')
+    fig, axes = plt.subplots(4, 4, figsize=(16, 16), subplot_kw={'projection': 'polar'})
+    
+    for bw_idx in range(4):
+        for pw_idx in range(4):
+            ax = axes[bw_idx, pw_idx]
+            azimuths, ranges, ppi = all_results[(bw_idx, pw_idx)]
+            
+            az_rad = np.deg2rad(azimuths)
+            R, AZ = np.meshgrid(ranges, az_rad)
+            
+            ppi_db = 10 * np.log10(ppi + 1e-30)
+            vmax = np.max(ppi_db)
+            ppi_norm = np.clip((ppi_db - (vmax - 50)) / 50, 0, 1)
+            
+            ax.pcolormesh(AZ, R, ppi_norm, cmap='gray', shading='auto')
+            ax.set_theta_zero_location('N')
+            ax.set_theta_direction(-1)
+            ax.set_facecolor('black')
+            
+            # Only show cardinal directions
+            ax.set_xticks(np.deg2rad([0, 90, 180, 270]))
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.grid(True, color='green', alpha=0.2, lw=0.3)
+            
+            # Title for each cell
+            res_m = c / (2 * bandwidths[bw_idx])
+            ax.set_title(f'{bw_labels[bw_idx]}\n{pw_labels[pw_idx]}', 
+                        color='green', fontsize=9, pad=5)
     
     fig.patch.set_facecolor('black')
-    fig.suptitle('Bandwidth Determines Range Resolution (after matched filter)\n'
-                 'Lower bandwidth = wider targets',
-                 color='green', fontsize=14, y=1.02)
     
-    plt.tight_layout()
-    output = os.path.join(os.path.dirname(__file__), 'ppi_bandwidth_comparison.png')
-    plt.savefig(output, dpi=150, facecolor='black', bbox_inches='tight')
+    # Add row/column labels
+    for bw_idx in range(4):
+        res_m = c / (2 * bandwidths[bw_idx])
+        fig.text(0.02, 0.8 - bw_idx * 0.2, f'{res_m:.1f}m\nres', 
+                color='yellow', fontsize=10, va='center')
+    
+    fig.suptitle('Bandwidth × Pulse Width Grid\n'
+                 'Rows: 100→5 MHz BW (resolution increases ↓) | Cols: 1→1000 μs pulse',
+                 color='green', fontsize=14, y=0.98)
+    
+    plt.tight_layout(rect=[0.05, 0, 1, 0.96])
+    
+    grid_path = os.path.join(os.path.dirname(__file__), 'ppi_bw_pulse_grid.png')
+    plt.savefig(grid_path, dpi=150, facecolor='black', bbox_inches='tight')
     plt.close()
     
-    print(f"\nSaved: {output}")
+    total_elapsed = time.time() - total_start
+    
+    print(f"\nSaved combined grid: {grid_path}")
+    print(f"Individual PPIs: {output_dir}/")
+    print(f"\nTotal time: {total_elapsed:.1f}s ({total_elapsed/60:.1f} min)")
     print("\n" + "=" * 70)
     print("  COMPLETE!")
     print("=" * 70)
