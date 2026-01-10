@@ -225,16 +225,21 @@ def generate_target_echo(
     target: ExtendedTarget,
     radar_pos: np.ndarray,
     ray_direction: np.ndarray,
+    ray_az_offset: float,
     tx_waveform: np.ndarray,
     wf_config: WaveformConfig,
     atm_config: AtmosphereConfig,
     surface: SurfaceProperties,
     blind_range: float,
     max_range: float,
-    antenna_gain: float
+    antenna_gain: float,
+    beamwidth_rad: float
 ) -> Tuple[np.ndarray, bool]:
     """
-    Generate echo from extended target with shadow effect.
+    Generate echo from extended target with realistic blob + expanding tail.
+
+    The tail "fans out" in azimuth as it extends in range, creating that
+    natural rounded blob with angular expansion effect seen in real radar.
 
     Returns:
         rx_signal: Received signal (or None if no hit)
@@ -249,40 +254,65 @@ def generate_target_echo(
     # Check if ray points at target
     target_dir = to_target / base_range
     dot = np.dot(ray_direction, target_dir)
-    angle = np.arccos(np.clip(dot, -1, 1))
+    angle_to_target = np.arccos(np.clip(dot, -1, 1))
     target_angular_size = np.arctan(target.width_m / base_range)
 
-    if angle > target_angular_size + np.radians(0.8):
+    if angle_to_target > target_angular_size + np.radians(1.5):
         return None, False
 
-    # Generate scatterers along target depth with trailing shadow
+    # Generate scatterers with SMOOTH TEARDROP shape - no sharp edges
     half_depth = target.depth_m / 2
-    scatterers = []  # (range_offset, amplitude)
+    scatterers = []  # (range_offset, amplitude, azimuth_spread_factor)
 
-    # 1. Leading edge (front surface) - strongest
-    scatterers.append((-half_depth, 1.0))
+    # Smooth amplitude functions
+    def gaussian(x, sigma):
+        return np.exp(-0.5 * (x / sigma) ** 2)
 
-    # 2. Internal scatterers (exponentially decaying into target)
-    n_internal = max(3, int(target.depth_m / 5))
-    for i in range(1, n_internal):
-        frac = i / n_internal
-        offset = -half_depth + frac * target.depth_m
-        amp = np.exp(-target.trailing_decay * frac * 4) * 0.4
-        scatterers.append((offset, amp))
+    def smooth_rise(x, width):
+        """Smooth rise from 0 to 1 over 'width' distance"""
+        if x < 0:
+            return 0
+        if x > width:
+            return 1
+        # Smooth S-curve (sine-based)
+        return 0.5 * (1 - np.cos(np.pi * x / width))
 
-    # 3. Back surface (weaker due to shadowing)
-    scatterers.append((half_depth, 0.25))
-
-    # 4. Trailing shadow (diffraction, multipath, creeping waves)
+    # Total extent: smooth lead-in + body + trailing shadow
+    lead_in = target.depth_m * 0.4  # Smooth rise BEFORE target front
+    body_length = target.depth_m
     shadow_length = target.depth_m * target.trailing_extent
-    n_shadow = max(5, int(shadow_length / 8))
 
-    for i in range(1, n_shadow + 1):
-        frac = i / n_shadow
-        offset = half_depth + frac * shadow_length
-        amp = 0.15 * np.exp(-target.trailing_decay * i * 0.8)
+    total_length = lead_in + body_length + shadow_length
+    n_total = max(15, int(total_length / 4))
+
+    # Peak position - slightly toward front of physical target
+    peak_offset = -half_depth * 0.3
+
+    for i in range(n_total):
+        frac = i / (n_total - 1) if n_total > 1 else 0.5
+
+        # Position: from lead-in through body to shadow end
+        offset = -half_depth - lead_in + frac * total_length
+
+        # Distance from peak (for amplitude calculation)
+        dist_from_peak = offset - peak_offset
+
+        if dist_from_peak < 0:
+            # LEADING EDGE: smooth Gaussian rise (no sharp front)
+            # Wider sigma for gentler rise
+            lead_sigma = lead_in + half_depth
+            amp = gaussian(dist_from_peak, lead_sigma)
+            az_spread = 1.0
+        else:
+            # TRAILING EDGE: exponential decay with fan-out
+            decay_dist = dist_from_peak / (body_length + shadow_length)
+            amp = np.exp(-target.trailing_decay * decay_dist * 4)
+
+            # Fan out increases with distance behind peak
+            az_spread = 1.0 + decay_dist * 2.5
+
         if amp > 0.005:
-            scatterers.append((offset, amp))
+            scatterers.append((offset, amp, az_spread))
 
     # Build received signal
     sample_rate = wf_config.sample_rate_hz
@@ -294,14 +324,18 @@ def generate_target_echo(
     rx_signal = np.zeros(n_samples, dtype=complex)
     rcs_linear = 10 ** (target.rcs_dbsm / 10)
 
-    for offset, amp in scatterers:
+    for offset, amp, az_spread in scatterers:
         scatter_range = base_range + offset
 
         if scatter_range < blind_range or scatter_range > max_range:
             continue
 
-        # Radar equation with antenna pattern
-        received_power = (rcs_linear * amp**2 * antenna_gain) / (scatter_range**4 + 1)
+        # Apply azimuth spread - ray further from boresight contributes more
+        # to expanded tail (simulates the fan-out effect)
+        az_factor = gaussian(ray_az_offset / (beamwidth_rad * az_spread), 1.0)
+
+        # Radar equation with antenna pattern and azimuth factor
+        received_power = (rcs_linear * amp**2 * antenna_gain * az_factor) / (scatter_range**4 + 1)
 
         # Atmospheric attenuation
         power_atten = apply_atmospheric_attenuation(
@@ -309,7 +343,7 @@ def generate_target_echo(
             wf_config.center_frequency_hz, atm_config
         )[0]
 
-        # Multipath factor (simplified)
+        # Multipath factor
         target_height = target.center[2]
         if target_height > 0:
             horiz_range = np.sqrt(target.center[0]**2 + target.center[1]**2)
@@ -327,9 +361,8 @@ def generate_target_echo(
 
         if delay_samples + pulse_samples < n_samples:
             phase = 4 * np.pi * wf_config.center_frequency_hz * scatter_range / C
-            # Add phase variation for internal scatterers
-            if abs(offset) < half_depth:
-                phase += np.random.uniform(-np.pi/6, np.pi/6)
+            # Smooth phase variation
+            phase += np.random.normal(0, np.pi / 8)
 
             echo = np.sqrt(power_atten) * np.exp(1j * phase) * tx_waveform
             rx_signal[delay_samples:delay_samples + pulse_samples] += echo
@@ -408,10 +441,12 @@ def run_simulation_for_mode(
             for target in targets:
                 rx_signal, hit = generate_target_echo(
                     target, radar_pos, direction,
+                    ray_az_offset[i],  # Pass azimuth offset for fan-out effect
                     tx_waveform, wf_config,
                     atm_config, surface,
                     blind_range, max_range,
-                    antenna_gain
+                    antenna_gain,
+                    az_bw_rad  # Beamwidth for scaling
                 )
 
                 if hit and rx_signal is not None:
@@ -438,9 +473,16 @@ def run_simulation_for_mode(
 
     # Apply beam spreading
     ppi_spread = quick_beam_spread(ppi_trimmed, radar_config.horizontal_beamwidth_deg,
-                                   n_azimuths, range_sigma_bins=1.0)
+                                   n_azimuths, range_sigma_bins=1.5)
 
-    return azimuths, ranges[:max_range_idx], ppi_spread
+    # Apply 2D Gaussian smoothing for natural blob appearance
+    from scipy.ndimage import gaussian_filter
+    # Sigma proportional to resolution - worse resolution = more smoothing
+    range_sigma = max(1.0, range_resolution / 3)
+    az_sigma = max(1.0, radar_config.horizontal_beamwidth_deg / (360 / n_azimuths) / 2)
+    ppi_smooth = gaussian_filter(ppi_spread, sigma=[az_sigma, range_sigma], mode='wrap')
+
+    return azimuths, ranges[:max_range_idx], ppi_smooth
 
 
 def plot_pulse_mode_comparison(results: List[Tuple], output_prefix: str = "pulse_mode"):
