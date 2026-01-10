@@ -1,0 +1,2 @@
+/Users/jvaught/Downloads/temp/temp_simu/implementation/pulse_length_comparison.py:323: UserWarning: Tight layout not applied. The left and right margins cannot be made large enough to accommodate all Axes decorations.
+  plt.tight_layout(rect=[0, 0, 1, 0.96])
