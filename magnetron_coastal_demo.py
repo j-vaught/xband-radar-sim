@@ -50,8 +50,8 @@ def create_demo_scene():
         radar_height_m=10.0,
         shoreline_y_m=600.0,         # Shoreline 600m north of radar
         n_boats=6,
-        n_buoys=10,
-        n_towers=2,
+        n_buoys=0,  # No buoys
+        n_towers=0,  # No towers
         terrain_params=terrain_params,
         seed=42
     )
