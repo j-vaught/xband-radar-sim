@@ -98,7 +98,7 @@ def run_demo():
 
     # Clutter parameters
     land_params = LandClutterParams(terrain_type="mixed")
-    sea_params = SeaClutterParams(sea_state=2, wind_speed_mps=8.0)
+    sea_params = SeaClutterParams(sea_state=1, wind_speed_mps=3.0)  # Calm lake
 
     # Run simulation
     print("\nRunning simulation...")
@@ -278,13 +278,18 @@ def plot_ppi(ax, result):
     ppi = result.ppi_cartesian
     config = result.config
 
-    # Normalize for display
+    # Normalize for display with threshold to cut noise floor
     ppi_norm = normalize_for_display(ppi, dynamic_range_db=40)
+
+    # Apply threshold and gamma to darken noise floor (sea clutter)
+    threshold = 0.2
+    ppi_norm = np.clip((ppi_norm - threshold) / (1 - threshold), 0, 1)
+    ppi_norm = ppi_norm ** 2.0  # Gamma > 1 crushes low values, makes water darker
 
     extent = [-config.max_range_m, config.max_range_m,
               -config.max_range_m, config.max_range_m]
 
-    ax.imshow(ppi_norm, extent=extent, origin='lower', cmap='viridis',
+    ax.imshow(ppi_norm, extent=extent, origin='lower', cmap='gray',
               vmin=0, vmax=1)
 
     # Range rings
@@ -319,10 +324,15 @@ def plot_ppi_detailed(ax, result):
 
     ppi_norm = normalize_for_display(ppi, dynamic_range_db=45)
 
+    # Apply threshold and gamma to darken noise floor (sea clutter)
+    threshold = 0.2
+    ppi_norm = np.clip((ppi_norm - threshold) / (1 - threshold), 0, 1)
+    ppi_norm = ppi_norm ** 2.0  # Gamma > 1 crushes low values
+
     extent = [-config.max_range_m, config.max_range_m,
               -config.max_range_m, config.max_range_m]
 
-    im = ax.imshow(ppi_norm, extent=extent, origin='lower', cmap='viridis')
+    im = ax.imshow(ppi_norm, extent=extent, origin='lower', cmap='gray')
 
     # Range rings with labels
     for r in [500, 1000, 1500, 2000]:

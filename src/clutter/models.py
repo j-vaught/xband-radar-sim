@@ -94,46 +94,13 @@ def compute_sea_sigma0(
     params: SeaClutterParams,
     frequency_hz: float = 9.5e9
 ) -> float:
-    """Compute sea clutter sigma0 using simplified Georgia Tech model.
-
-    The GIT model accounts for sea state, wind, and grazing angle.
-
-    Args:
-        grazing_angle_rad: Grazing angle in radians
-        params: Sea clutter parameters
-        frequency_hz: Radar frequency
+    """Compute sea clutter sigma0.
 
     Returns:
         sigma0 in linear units (m²/m²)
     """
-    # Simplified GIT model parameters for X-band
-    # sigma0_dB = A * log10(sin(psi)) + B
-
-    # Sea state factor (higher sea state = more clutter)
-    sea_factor = 1 + 0.15 * params.sea_state
-
-    # Wind factor (more wind = rougher sea = more clutter)
-    wind_factor = 1 + 0.02 * params.wind_speed_mps
-
-    # Wind direction effect (upwind sees more clutter than downwind)
-    wind_angle_rad = np.radians(params.wind_direction_deg)
-    direction_factor = 1 + 0.3 * np.cos(wind_angle_rad)
-
-    # Base sigma0 at X-band for moderate sea
-    base_sigma0_db = -25.0
-
-    # Grazing angle dependence (steeper = more clutter)
-    sin_psi = np.sin(np.maximum(grazing_angle_rad, 0.01))
-    grazing_db = 10 * np.log10(sin_psi + 1e-10)
-
-    # Combined sigma0
-    sigma0_db = base_sigma0_db + grazing_db * 1.5
-    sigma0_db += 10 * np.log10(sea_factor * wind_factor * direction_factor)
-
-    # Clamp to reasonable range
-    sigma0_db = np.clip(sigma0_db, -50, 0)
-
-    return 10 ** (sigma0_db / 10)
+    # No water reflections - perfectly calm/flat water returns nothing
+    return 0.0
 
 
 def compute_clutter_rcs(

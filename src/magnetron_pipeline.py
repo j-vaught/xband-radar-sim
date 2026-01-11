@@ -279,12 +279,35 @@ def run_magnetron_simulation(
             config.wavelength_m
         )
 
-        # Add to PPI
+        # Add to PPI with range extent (pulse width causes range smearing)
         az_idx = int(target_az / 360 * n_azimuths) % n_azimuths
         range_idx = int(target_range / config.max_range_m * n_range_bins)
 
-        if 0 <= range_idx < n_range_bins:
-            ppi_polar[az_idx, range_idx] += power
+        # Spread return over range bins based on pulse width
+        # Range extent = pulse_width * c / 2 = range_resolution
+        range_bin_width = config.max_range_m / n_range_bins
+        pulse_extent_bins = max(1, int(config.range_resolution_m / range_bin_width))
+
+        # Create realistic blob shape - Gaussian-like, soft on both edges
+        # Slightly asymmetric (bit more trailing than leading)
+        blob_sigma = pulse_extent_bins * 0.18  # Very compact blob
+        blob_center_offset = 1  # Peak slightly behind front edge
+
+        # Spread over range (both before and after target position)
+        for dr in range(-int(blob_sigma * 2), int(blob_sigma * 2.5) + 1):
+            r_idx = range_idx + dr
+            if 0 <= r_idx < n_range_bins:
+                # Gaussian-like envelope, slightly asymmetric
+                if dr < blob_center_offset:
+                    # Leading edge - slightly steeper
+                    sigma_eff = blob_sigma * 0.8
+                else:
+                    # Trailing edge - slightly wider
+                    sigma_eff = blob_sigma * 1.2
+
+                dist = dr - blob_center_offset
+                weight = np.exp(-0.5 * (dist / sigma_eff) ** 2)
+                ppi_polar[az_idx, r_idx] += power * weight
 
         detected_targets.append({
             'name': target.name,
